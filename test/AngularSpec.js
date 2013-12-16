@@ -88,7 +88,7 @@ describe('angular', function() {
       expect(dst.a).not.toBe(src.a);
     });
 
-    it("should deeply copy an object into a non-existing object", function() {
+    it("should deeppy copy an object into a non-existing object", function() {
       var src = {a:{name:"value"}};
       var dst = copy(src, undefined);
       expect(src).toEqual({a:{name:"value"}});
@@ -104,6 +104,30 @@ describe('angular', function() {
       expect(copy('lala')).toBe('lala');
       expect(copy(123)).toEqual(123);
       expect(copy([{key:null}])).toEqual([{key:null}]);
+    });
+
+    it("should support recursive objects", function() {
+      var recursiveObject = {
+        foo: 1,
+        bar: 1,
+        recursive: null
+      };
+      recursiveObject.recursive = recursiveObject;
+
+      var expectedCopy = {
+        foo: 1,
+        bar: 1,
+        recursive: recursiveObject
+      }
+      expect(copy(recursiveObject)).toEqual(expectedCopy);
+      expect(copy(recursiveObject)).not.toBe(recursiveObject);
+    });
+
+    it("should support XML nodes", function() {
+      var anElement = document.createElement("foo");
+      var theCopy = anElement.cloneNode();
+      expect(copy(anElement)).toEqual(theCopy);
+      expect(copy(anElement)).not.toBe(theCopy);
     });
 
     it('should throw an exception if a Scope is being copied', inject(function($rootScope) {

@@ -719,45 +719,72 @@ function isLeafNode (node) {
  </doc:source>
  </doc:example>
  */
-function copy(source, destination){
+function copy(source, destination, recursiveKeys, recursiveValues){
+  if (!recursiveKeys) {
+    recursiveKeys = [];
+    recursiveValues = [];
+  }
+
+  function storePair(key, value) {
+    recursiveKeys.push(key);
+    recursiveValues.push(value);
+  }
+
   if (isWindow(source) || isScope(source)) {
     throw ngMinErr('cpws',
       "Can't copy! Making copies of Window or Scope instances is not supported.");
   }
 
-  if (!destination) {
-    destination = source;
-    if (source) {
-      if (isArray(source)) {
-        destination = copy(source, []);
-      } else if (isDate(source)) {
-        destination = new Date(source.getTime());
-      } else if (isRegExp(source)) {
-        destination = new RegExp(source.source);
-      } else if (isObject(source)) {
-        destination = copy(source, {});
-      }
-    }
-  } else {
-    if (source === destination) throw ngMinErr('cpi',
-      "Can't copy! Source and destination are identical.");
-    if (isArray(source)) {
-      destination.length = 0;
-      for ( var i = 0; i < source.length; i++) {
-        destination.push(copy(source[i]));
+  var existingSourceIndex = recursiveKeys.indexOf(source);
+  if (existingSourceIndex === -1) {
+    if (!destination) {
+      destination = source;
+      if (source) {
+        if (isArray(source)) {
+          destination = copy(source, [], recursiveKeys, recursiveValues);
+        } else if (isDate(source)) {
+          destination = new Date(source.getTime());
+          storePair(source, destination);
+        } else if (isRegExp(source)) {
+          destination = new RegExp(source.source);
+          storePair(source, destination);
+        } else if (source.cloneNode) {
+          destination = source.cloneNode();
+          storePair(source, destination);
+        } else if (isObject(source)) {
+          destination = copy(source, {}, recursiveKeys, recursiveValues);
+        } else {
+          storePair(source, destination);
+        }
+      } else {
+        storePair(source, destination);
       }
     } else {
-      var h = destination.$$hashKey;
-      forEach(destination, function(value, key){
-        delete destination[key];
-      });
-      for ( var key in source) {
-        destination[key] = copy(source[key]);
+      if (source === destination) throw ngMinErr('cpi',
+        "Can't copy! Source and destination are identical.");
+
+      storePair(source, destination);
+      if (isArray(source)) {
+        destination.length = 0;
+        for ( var i = 0; i < source.length; i++) {
+          destination.push(copy(source[i], null, recursiveKeys, recursiveValues));
+        }
+      } else {
+        var h = destination.$$hashKey;
+        forEach(destination, function(value, key){
+          delete destination[key];
+        });
+        for ( var key in source) {
+          destination[key] = copy(source[key], null, recursiveKeys, recursiveValues);
+        }
+        setHashKey(destination,h);
       }
-      setHashKey(destination,h);
     }
+
+    return destination;
+  } else {
+    return recursiveValues[existingSourceIndex];
   }
-  return destination;
 }
 
 /**
